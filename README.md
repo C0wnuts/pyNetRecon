@@ -45,8 +45,9 @@ pip3 install -r requirements.txt
 
 options:
   -h, --help            show usage
-  -I, --interface       set the network interface (required) 
-  -X, --exclusion       set exclusion IP list
+  -I, --interface       set the network interface (required), ex: eth0
+  -X, --exclusion       set exclusion IP list, ex: 10.2.3.2,192.168.1.1
+  -o, --outputfile      set beginning of output files, ex: evilCorp
 
 domain harvesting:
   -d, --domain          domain name, format is full domain name, ex: domain.local
@@ -55,7 +56,7 @@ domain harvesting:
   -H, --hashes          NTLM hashes, format is LMHASH:NTHASH or :NTHASH
   -s, --ldaps           use LDAP over SSL (can be usefull to bypass NIDS and NIPS)
   -a, --active-only     gather only active users on domain
-  -i, --dc-ip           set domain controller IP manually (required if pyNetRecon could not find the DC automatically)
+  -i, --dc-ip           set domain controller IP manually (required if pyNetRecon could not find the DC automatically), ex: 10.1.2.3
 
 mods:
   -A, --active          manually provide IP, IP range or CIDR list, ex: 192.168.1.1/24,10.20.1.4-10,172.16.1.4
