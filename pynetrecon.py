@@ -10,7 +10,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-parser = optparse.OptionParser(usage='python3 %prog -I eth0 -d domain.local -i 10.1.2.3 -u user -p p@ssw0rd -A 192.168.1.1/24,172.16.1.1/16', version=settings.__version__, prog=sys.argv[0])
+parser = optparse.OptionParser(usage='python3 %prog -I eth0 -d domain.local -i 10.1.2.3 -u user -p p@ssw0rd -A 192.168.1.1/24,172.16.1.1/16 -a', version=settings.__version__, prog=sys.argv[0])
 parser.add_option('-I','--interface',  action="store",       help="Network interface to use", dest="Interface", metavar="eth0", default=None)
 parser.add_option('-A','--active',     action="store",       help="Active mode. This option allows you to enable active IP address harvesting by entering CIDRs.", dest="Active", default=None)
 parser.add_option('-a','--active-only',action="store_true",  help="Gather only active users on domain.", dest="ActiveOnly", default=False)
