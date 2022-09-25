@@ -31,7 +31,7 @@ Version 1.0:<br/>
 
 ## Installation
 
-```python
+```bash
 git clone https://github.com/C0wnuts/pyNetRecon
 cd pyNetRecon
 pip3 install -r requirements.txt
@@ -65,6 +65,6 @@ verbosity:
   -v, --verbose             enable verbose mod
 ```
 
-```python
+```bash
  python3 pyNetRecon.py -I eth0 -d domain.local -i 10.1.2.3 -u user -p p@ssw0rd -a -A 192.168.1.1/24,172.16.1.1/16
 ```
