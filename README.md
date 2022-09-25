@@ -41,7 +41,7 @@ pip3 install -r requirements.txt
 
 ## Usage
 
-```python
+```
 
 options:
   -h, --help            show usage
@@ -66,5 +66,5 @@ verbosity:
 ```
 
 ```bash
- python3 pyNetRecon.py -I eth0 -d domain.local -i 10.1.2.3 -u user -p p@ssw0rd -a -A 192.168.1.1/24,172.16.1.1/16
+ python3 pyNetRecon.py -I eth0 -d domain.local -u user -p p@ssw0rd -a -A 192.168.1.1/24,172.16.1.1/16
 ```
