@@ -1,4 +1,4 @@
-# pyNetRecon
+# pyNetRecon <img src="https://img.shields.io/badge/Python-3.7+-informational"> <a href="https://twitter.com/intent/follow?screen_name=kevin_racca" title="Follow"><img src="https://img.shields.io/twitter/follow/kevin_racca?label=kevin_racca&style=social"></a>
 Python tool designed to quickly enumerate information needed to perform pentests on a local network. It retrieves and aggregates information from several sources such as: the LDAP directory, the current CIDR or manually provided.
 
 **This tool is deliberately not based on the impacket library for reasons of discretion during information gathering**
