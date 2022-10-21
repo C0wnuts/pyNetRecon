@@ -2,21 +2,25 @@
 
 import utils, os, sys, netifaces, socket
 from utils import *
+from dns import resolver
+from datetime import datetime
 
-__version__ = 'pyNetRecon 1.0'
+__version__ = 'pyNetRecon 0.1'
 
 class Settings:
     def __init__(self):
         self.pyNetReconPath   = os.path.dirname(__file__)
+        self.now              = datetime.now().strftime("%Y-%d-%m,%H_%M_%S")
         self.defaultFontCol   = "\x1b[39m"
         self.successFontCol   = "\x1b[32m"
         self.errorFontCol     = "\x1b[31m"
         self.infoFontCol      = "\x1b[36m"
-        self.ipListFilename   = "pyNetRecon-ipList.txt"
-        self.dcListFilename   = "pyNetRecon-dcList.txt"
-        self.dnsListFilename  = "pyNetRecon-computerList.txt"
-        self.cidrListFilename = "pyNetRecon-cidrList.txt"
-        self.userListFilename = "pyNetRecon-userList.txt"
+        self.outputFolder     = "output"
+        self.ipListFilename   = "ipList.txt"
+        self.dcListFilename   = "dcList.txt"
+        self.dnsListFilename  = "hostList.txt"
+        self.cidrListFilename = "cidrList.txt"
+        self.userListFilename = "userList.txt"
         self.currentCidr      = ""
         self.strIpExclusion   = ""
         self.ipList           = []
@@ -26,12 +30,17 @@ class Settings:
         self.dcList           = []
         self.dnsList          = []
 
+        utils.createFoler(self.outputFolder)
+
     def populate(self, options):
+        self.banner()
         self.interface     = options.Interface
+        self.isInterfaceUp()
         self.passiveMod    = options.Passive
         self.activeMod     = options.Active
         self.pingsweep     = options.Pingsweep
-        self.outFileName   = options.OutputFileName
+        self.thread        = options.Thread
+        self.setOutDirName(options.OutputDir)
         self.activeModList = utils.normalizeList(self.activeMod)
         self.errorHandler(options)
         self.setIpExclusion(options.Exclusion)
@@ -44,11 +53,24 @@ class Settings:
         self.verbose       = options.Verbose
         self.activeOnly    = options.ActiveOnly
         self.ldaps         = options.Ldaps
+        self.customDns     = options.DnsServer
+        self.setDnsResolver()
         self.lmhash        = ""
         self.nthash        = ""
         self.setHashes(options.Hashes)
         self.setPassword()
 
+    def isInterfaceUp(self):
+        try:
+            netifaces.ifaddresses(self.interface)
+        except Exception as e:
+            utils.color(f"[!] Interface {self.interface} does not exists or down : {e}")
+            sys.exit(1)
+
+    def setOutDirName(self, outputDir):
+        if "" != outputDir:
+            outputDir = f"{outputDir}_"
+        self.outputDir = utils.sanityzeFileName(f"{outputDir}{self.now}")
 
     def setPassword(self):
         if None == self.password and "" != self.nthash:
@@ -60,8 +82,14 @@ class Settings:
         if "" == self.lmhash and "" != self.nthash:
             self.lmhash = "aad3b435b51404eeaad3b435b51404ee"
 
+    def setDnsResolver(self):
+        self.dnsResolver = resolver.Resolver()
+        self.dnsResolver.lifetime = 2
+        if None != self.customDns:
+            self.dnsResolver.nameservers = [self.customDns]
+
     def setIpExclusion(self, ipList):
-        selfIp = netifaces.ifaddresses(self.interface)[netifaces.AF_INET][0]['addr']
+        selfIp         = netifaces.ifaddresses(self.interface)[netifaces.AF_INET][0]['addr']
         self.exclusion = ["224.0.0.251", "224.0.0.252", "127.0.0.1", selfIp]
         if None != ipList:
             self.exclusion = self.exclusion + utils.normalizeList(ipList)
@@ -70,8 +98,6 @@ class Settings:
         self.strIpExclusion = self.strIpExclusion.rstrip(",")
 
     def printExecutionParameters(self):
-        self.banner()
-        
         utils.color(f"[i] Selected interface   : {self.interface}")
         utils.color(f"[i] Excluded addresses   : {self.exclusion}")
         mods       = "[i] Harvesting modes     : Default"
@@ -86,6 +112,7 @@ class Settings:
 
 
     def banner(self):
+        utils.color("#######################################################")
         print("                                                        ")
         print("    ___       _  __    __  ___                  ,--..o  ")
         print("   / _ \\__ __/ |/ /__ / /_/ _ \\___ _______  ___ \\   /`. ")

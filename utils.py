@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import settings, ipaddress, os, time, sys, re
+import settings, ipaddress, os, re, unicodedata
 from tools.logging import Logging
 from utils import *
 
@@ -45,6 +45,20 @@ def checkIpInNetwork(ip):
     if False == isFound:
         settings.Config.cidrList.append(getCidrFromIp(ip))
 
+
+def createFoler(directory, isOutput = False):
+    directory = sanityzeFileName(directory)
+    if True == isOutput:
+        directory = f"{settings.Config.outputFolder}/{directory}"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        return directory
+
+def sanityzeFileName(filename):
+    forbidden_chars  = '"*\\/\'.|?:<>'
+    cleaned_filename = unicodedata.normalize('NFKD', filename).encode('ASCII', 'ignore').decode()
+    filename = ''.join([x if x not in forbidden_chars else '_' for x in cleaned_filename])
+    return filename
 
 def addUniqueTolist(itemList, newItemList, isForcedVerbose = False, filename = None):
     for item in newItemList:

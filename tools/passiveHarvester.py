@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, utils
+import os, utils
 from utils import *
 from tools.logging import Logging
 from scapy.all import sniff

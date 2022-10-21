@@ -5,11 +5,9 @@ from ldap3 import Connection, Server, NTLM, ALL
 from utils import *
 import socket, sys
 
-
 class DomainHarvester:
     
     def __init__(self):
-        self.ipList       = []
         self.cidrList     = []
 
     def processRecord(self, itemList):
@@ -33,11 +31,6 @@ class DomainHarvester:
                         hostname = str(item['dNSHostName'])
                     # dns hostname
                     addUniqueTolist(settings.Config.dnsList, [hostname], settings.Config.verbose)
-                    # Ip Address
-                    finalValue = socket.gethostbyname(str(hostname))
-                    if '' != finalValue:
-                        addUniqueTolist(settings.Config.ipList, [finalValue], settings.Config.verbose)
-                        self.ipList = addUniqueTolist(self.ipList, [finalValue])
 
                 if 'name' in item:
                     # Subnets
@@ -73,39 +66,26 @@ class DomainHarvester:
         target   = settings.Config.kdcHost
         kdcHost  = settings.Config.kdcHost
 
-        domainParts = domain.split('.')
-        baseDN      = ''
-        for i in domainParts:
-            baseDN += 'dc=%s,' % i
-        # Remove last ','
-        baseDN      = baseDN[:-1]
-
         color(f"[i] Begin Domain scan on {domain}")
 
         if None == kdcHost:
             try:
-                kdcHost                 = socket.gethostbyname(domain)
+                kdcHost                 = str(settings.Config.dnsResolver.resolve(qname=domain)[0])
                 settings.Config.kdcHost = kdcHost
                 target                  = kdcHost
                 color(f"[i] Domain Controller found : {target}")
             except:
-                color(f"[!] Domain controller not found on : {domain}\n [!] Fill in domain controller IP address with -i mandatory option")
-                sys.exit(-1)    
-
-        if kdcHost is not None:
-            target = kdcHost
+                color(f"[!] Domain controller not found on : {domain}\n [!] Try to specify DNS IP via -D mandatory option or directly fill in the domain controller IP address with -i mandatory option")
+                sys.exit(-1)
         else:
-            target = domain
-
-
+            target = kdcHost
 
         if True == settings.Config.ldaps:
-            serv = Server(target, get_info=ALL, use_ssl = True)
+            serv = Server(target, get_info=ALL, use_ssl = True, connect_timeout=15)
         else:
-            serv = Server(target, get_info=ALL)
+            serv = Server(target, get_info=ALL, connect_timeout=15)
 
         ldapConnection = Connection(serv, user=f"{domain}\\{username}", password=f"{password}", authentication=NTLM)
-
         try:
             if not ldapConnection.bind():
                 color("[!] Fail to connect to domain : bad credentials")
@@ -153,4 +133,3 @@ class DomainHarvester:
         
         color(f"[*] Domain controllers found : {len(settings.Config.dcList)}")
         color(f"[*] Domain computers found : {len(settings.Config.dnsList)}")
-        color(f"[*] Domain IP Addresses found (via dns resolution) : {len(self.ipList)}")

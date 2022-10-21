@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from scapy.all import *
+from scapy.all import Ether, ARP, srp
 from utils import *
-import nmap, sys
+import nmap
 
 class Scanner:
 

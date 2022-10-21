@@ -13,6 +13,12 @@ This tool makes it possible to recover a lot of information about the attacked i
 <br />
 
 ## Changelog
+Version 1.1:<br/>
+- Fix a bug that prevented querying trusted domains via an external domain account on the trusted domain controller
+- Drastically reduces DNS resolutions of host names found in the domain via threading implementation
+- Change the folder tree during output for a more ergonomic classification
+- Add -D parameter to specify custom DNS IP
+- Add -t parameter to specify the number of threads for dns resolution
 Version 1.0:<br/>
 - Domain information gathering via LDAP & LDAPS : domain users, domain computers, DC list, IP associated with hostname of computers
 - Domain information gathering on Trusted Domain via providing the DC IP of the other domain
@@ -46,6 +52,8 @@ pip3 install -r requirements.txt
 options:
   -h, --help            show usage
   -I, --interface       set the network interface (required), ex: eth0
+  -D, --dns-ip          Ip address of the dns server to use
+  -t, --threads         Number of threads for dns resolution (default 30)
   -X, --exclusion       set exclusion IP list, ex: 10.2.3.2,192.168.1.1
   -o, --outputfile      set beginning of output files, ex: evilCorp
 
@@ -54,9 +62,9 @@ domain harvesting:
   -u, --user            domain user, ex: administrator
   -p, --password        domain user password, ex: P@ssword!
   -H, --hashes          NTLM hashes, format is LMHASH:NTHASH or :NTHASH
+  -i, --dc-ip           set domain controller IP manually (required if pyNetRecon could not find the DC automatically), ex: 10.1.2.3
   -s, --ldaps           use LDAP over SSL (can be usefull to bypass NIDS and NIPS)
   -a, --active-only     gather only active users on domain
-  -i, --dc-ip           set domain controller IP manually (required if pyNetRecon could not find the DC automatically), ex: 10.1.2.3
 
 mods:
   -A, --active          manually provide IP, IP range or CIDR list, ex: 192.168.1.1/24,10.20.1.4-10,172.16.1.4
@@ -67,5 +75,5 @@ verbosity:
 ```
 
 ```bash
- python3 pyNetRecon.py -I eth0 -d domain.local -u user -p p@ssw0rd -a -A 192.168.1.1/24,172.16.1.1/16
+ python3 pyNetRecon.py -I eth0 -d domain.local -u user -p p@ssw0rd -a -A 192.168.1.1/24,172.16.1.1/16 -s -D 192.168.1.20 -o myDom -t 50
 ```
