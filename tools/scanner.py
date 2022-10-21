@@ -6,9 +6,11 @@ import nmap
 
 class Scanner:
 
-    def arpScan(ip):
-        request    = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip)
-        ans, unans = srp(request, timeout=2, retry=1, iface=settings.Config.interface)
+    def arpScan(targets):
+        if True == settings.Config.verbose:
+            color(f"[i] Perform ARP scan on {targets}")
+        request    = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=targets)
+        ans, unans = srp(request, timeout=2, retry=1, iface=settings.Config.interface, verbose=False)
         result     = []
 
         for sent, received in ans:
@@ -17,6 +19,8 @@ class Scanner:
         return result
 
     def pingSweepScan(targets):
+        if True == settings.Config.verbose:
+            color(f"[i] Perform PingSweep scan on {targets}")
         finalHostList = []
         nm = nmap.PortScanner()
         nm.scan(hosts=targets, arguments=f"-n -sn -e {settings.Config.interface} --exclude {settings.Config.strIpExclusion}")

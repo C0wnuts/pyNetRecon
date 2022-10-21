@@ -22,7 +22,7 @@ from tools.activeHarvester import ActiveHarvester
 from tools.dnsHarvester import DnsHarvester
 from tools.logging import Logging
 
-parser = optparse.OptionParser(usage='python3 %prog -I eth0 -d domain.local -i 10.1.2.3 -u user -p p@ssw0rd -A 192.168.1.1/24,172.16.1.1/16', version=settings.__version__, prog=sys.argv[0])
+parser = optparse.OptionParser(usage='python3 %prog -I eth0 -d domain.local -u user -p p@ssw0rd -a -A 192.168.1.1/24,172.16.1.1/16 -s -D 192.168.1.20 -o myDom -t 50', version=settings.__version__, prog=sys.argv[0])
 parser.add_option('-I','--interface',  action="store",       help="Network interface to use.", dest="Interface", metavar="eth0", default=None)
 parser.add_option('-D','--dns-ip',     action="store",       help="Ip address of the dns server to use.", dest="DnsServer", metavar="10.32.1.3", default=None)
 parser.add_option('-t','--threads',    action="store",       help="Number of threads for dns resolution (default 30).", dest="Thread", default=30, type=int)
@@ -67,18 +67,14 @@ def main():
     try:
         loging = Logging()
         
-        deductionHarvester = harvest(DeductionHarvester)
+        harvest(DeductionHarvester)
         if None != settings.Config.domain:
-            domainHarvester    = harvest(DomainHarvester)
+            harvest(DomainHarvester)
 
-        if None != settings.Config.activeMod:
-            color(f"[i] Begin Active scan on : {settings.Config.activeMod}")
-            activeTargetList = normalizeList(settings.Config.activeMod)
-            for activeTarget in activeTargetList:
-                harvestSingleTarget(ActiveHarvester, activeTarget)
+        harvest(ActiveHarvester)
 
         if [] != settings.Config.dnsList:
-            dnsHarvester = harvest(DnsHarvester)
+            harvest(DnsHarvester)
 
         loging.logArrayToFile(settings.Config.cidrList, settings.Config.cidrListFilename)
         loging.logArrayToFile(settings.Config.userList, settings.Config.userListFilename)

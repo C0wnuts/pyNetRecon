@@ -25,7 +25,7 @@ def success(text):
 
 def normalizeList(text):
     if None != text:
-        itemList     = text.split(",")
+        itemList = text.split(",")
         return [item.strip() for item in itemList]
     return []
 
@@ -36,8 +36,8 @@ def getCidrFromIp(ip):
     return re.sub(r'\d+$', '0/24', ip)
 
 def checkIpInNetwork(ip):
-    ipAddr = ipaddress.ip_address(ip)
-    isFound  = False 
+    ipAddr  = ipaddress.ip_address(ip)
+    isFound = False 
     for cidr in settings.Config.cidrList:
         networkCidr = ipaddress.ip_network(cidr)
         if ipAddr in networkCidr:

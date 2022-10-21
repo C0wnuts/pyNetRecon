@@ -5,7 +5,7 @@ from utils import *
 from dns import resolver
 from datetime import datetime
 
-__version__ = 'pyNetRecon 0.1'
+__version__ = 'pyNetRecon 1.1'
 
 class Settings:
     def __init__(self):
@@ -41,7 +41,7 @@ class Settings:
         self.pingsweep     = options.Pingsweep
         self.thread        = options.Thread
         self.setOutDirName(options.OutputDir)
-        self.activeModList = utils.normalizeList(self.activeMod)
+        self.activeModList = (list(set(utils.normalizeList(self.activeMod))))
         self.errorHandler(options)
         self.setIpExclusion(options.Exclusion)
         self.printExecutionParameters()
