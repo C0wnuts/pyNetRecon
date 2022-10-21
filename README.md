@@ -19,6 +19,7 @@ Version 1.1:<br/>
 - Change the folder tree during output for a more ergonomic classification
 - Add -D parameter to specify custom DNS IP
 - Add -t parameter to specify the number of threads for dns resolution
+
 Version 1.0:<br/>
 - Domain information gathering via LDAP & LDAPS : domain users, domain computers, DC list, IP associated with hostname of computers
 - Domain information gathering on Trusted Domain via providing the DC IP of the other domain
