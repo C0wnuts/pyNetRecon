@@ -61,9 +61,11 @@ def sanityzeFileName(filename):
     return filename
 
 def addUniqueTolist(itemList, newItemList, isForcedVerbose = False, filename = None):
+    uniqueList = []
     for item in newItemList:
         if item not in itemList and item not in settings.Config.exclusion:
             itemList.append(item)
+            uniqueList.append(item)
             if bool(re.match(r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$", str(item))):
                 checkIpInNetwork(item)
             if True == isForcedVerbose:
@@ -72,5 +74,5 @@ def addUniqueTolist(itemList, newItemList, isForcedVerbose = False, filename = N
                 logging = Logging()
                 logging.loggingToFile(item.strip(), filename)
         elif True == settings.Config.verbose:
-            color("[i] Entry skipped : already known")
-    return itemList
+            color(f"[i] Entry already known : {item}")
+    return itemList, uniqueList

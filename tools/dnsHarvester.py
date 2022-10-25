@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import threading, queue
+import queue
 from tools.threads.threadDnsResolve import ThreadDnsResolve
 from utils import *
 

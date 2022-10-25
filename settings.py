@@ -23,6 +23,7 @@ class Settings:
         self.userListFilename = "userList.txt"
         self.currentCidr      = ""
         self.strIpExclusion   = ""
+        self.isMacAddrValid   = True
         self.ipList           = []
         self.cidrList         = []
         self.cidrDoneList     = []
@@ -36,7 +37,7 @@ class Settings:
         self.banner()
         self.interface     = options.Interface
         self.isInterfaceUp()
-        self.passiveMod    = options.Passive
+        self.isInterfaceHaveMac()
         self.activeMod     = options.Active
         self.pingsweep     = options.Pingsweep
         self.thread        = options.Thread
@@ -67,6 +68,12 @@ class Settings:
             utils.color(f"[!] Interface {self.interface} does not exists or down : {e}")
             sys.exit(1)
 
+    def isInterfaceHaveMac(self):
+        try:
+            netifaces.ifaddresses(self.interface)[netifaces.AF_LINK]
+        except Exception as e:
+            self.isMacAddrValid = False
+
     def setOutDirName(self, outputDir):
         if "" != outputDir:
             outputDir = f"{outputDir}_"
@@ -74,7 +81,7 @@ class Settings:
 
     def setPassword(self):
         if None == self.password and "" != self.nthash:
-            self.password = f"{lmhash}:{nthash}"
+            self.password = f"{self.lmhash}:{self.nthash}"
 
     def setHashes(self, hashes):
         if None != hashes:
@@ -98,12 +105,13 @@ class Settings:
         self.strIpExclusion = self.strIpExclusion.rstrip(",")
 
     def printExecutionParameters(self):
-        utils.color(f"[i] Selected interface   : {self.interface}")
+        if False == self.isMacAddrValid:
+            utils.color(f"[i] Selected interface   : {self.interface}; No Valid MAC address found, ARP scan will be skipped")
+        else:
+            utils.color(f"[i] Selected interface   : {self.interface}")
         utils.color(f"[i] Excluded addresses   : {self.exclusion}")
         mods       = "[i] Harvesting modes     : Default"
 
-        if True == self.passiveMod:
-            mods = f"{mods}, Passive"
         if None != self.activeMod:
             mods = f"{mods}, Active \n [i] Active Harvesting on : {self.activeModList}"
 

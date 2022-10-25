@@ -14,7 +14,7 @@
 # Author:
 #   C0wnuts (@kevin_racca)
 
-import optparse, threading, sys
+import optparse, sys
 from utils import *
 from tools.deductionHarvester import DeductionHarvester
 from tools.domainHarvester import DomainHarvester
@@ -36,8 +36,7 @@ parser.add_option('-i','--dc-ip',      action="store",       help="Ip address of
 parser.add_option('-s','--ldaps',      action="store_true",  help="Active LDAP over SSL to encrypt communications.", dest="Ldaps", default=False)
 parser.add_option('-a','--active-only',action="store_true",  help="Gather active users only on domain.", dest="ActiveOnly", default=False)
 parser.add_option('-A','--active',     action="store",       help="Active mode. This option allows you to enable active IP address harvesting by entering CIDRs.", dest="Active", default=None)
-parser.add_option('-S','--pingsweep',  action="store_true",  help="Enable pingsweep mode. This option allows you to enable pingsweep scan for IP address harvesting on discovered CIDR.", dest="Pingsweep", default=False)
-parser.add_option('-P','--passive',    action="store_true",  help="Enable passive mode. This option allows you to enable passive IP address harvesting. NOT IMPLEMENTED", dest="Passive", default=False)
+parser.add_option('-P','--pingsweep',  action="store_true",  help="Enable pingsweep mode. This option allows you to enable pingsweep scan for IP address harvesting on discovered CIDR.", dest="Pingsweep", default=False)
 parser.add_option('-v','--verbose',    action="store_true",  help="Increase verbosity.", dest="Verbose", default=False)
 options, args = parser.parse_args()
 
@@ -45,11 +44,11 @@ settings.init()
 
 if not os.geteuid() == 0:
     color("[!] pyNetRecon must be run as root.")
-    sys.exit(-1)
+    sys.exit(1)
 elif options.Interface == None:
     color("[!] Interface is missing: -I mandatory option is missing.")
     parser.print_help()
-    exit(-1)
+    exit(1)
 
 settings.Config.populate(options)
 
@@ -58,9 +57,9 @@ def harvest(harvesterCls):
     harvester.harvest()
     return harvester
 
-def harvestSingleTarget(harvesterCls, target):
+def harvestPingSweep(harvesterCls):
     harvester = harvesterCls()
-    harvester.harvestSingleTarget(target)
+    harvester.harvestPingSweep()
     return harvester
 
 def main():
@@ -70,8 +69,10 @@ def main():
         harvest(DeductionHarvester)
         if None != settings.Config.domain:
             harvest(DomainHarvester)
-
-        harvest(ActiveHarvester)
+        if True == settings.Config.isMacAddrValid:
+            harvest(ActiveHarvester)
+        else:
+            color(f"[i] ARP scan skipped : No valid MAC address for {settings.Config.interface}")
 
         if [] != settings.Config.dnsList:
             harvest(DnsHarvester)
@@ -82,19 +83,10 @@ def main():
         loging.logArrayToFile(settings.Config.dnsList,  settings.Config.dnsListFilename)
         loging.logArrayToFile(settings.Config.ipList,   settings.Config.ipListFilename)
 
-        if False != settings.Config.pingsweep:
-            threads = []
-
-            for cidr in settings.Config.cidrList:
-                threads.append(threading.Thread(target=harvestSingleTarget, args=(ActiveHarvester, cidr)))
-
-            for thread in threads:
-                thread.start()
-
-            for thread in threads:
-                thread.join()
-
-        color(f"[i] Scan complete. Enjoy !")
+        if True == settings.Config.pingsweep or 0 != len(settings.Config.activeModList):
+            harvestPingSweep(ActiveHarvester)
+        
+        color("################ Scan complete. Enjoy !################")
 
     except KeyboardInterrupt:
         sys.exit("Exiting...")

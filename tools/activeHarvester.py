@@ -1,34 +1,45 @@
 #!/usr/bin/env python3
 
+import queue
 from tools.scanner import Scanner
+from tools.threads.threadPingSweep import ThreadPingSweep
 from utils import *
 
 class ActiveHarvester:
 
+    def __init__(self):
+        self.ipList = []
+
     def harvest(self):
         color(f"[i] Begin ARP scan on current CIDR")
-        hostIpList = []
         arpIpList  = Scanner.arpScan(settings.Config.currentCidr)
         addCidrToDoneList(settings.Config.currentCidr)
         color(f"[*] IP addresses found by ARP scan on {settings.Config.currentCidr} : {len(arpIpList)}")
+        addUniqueTolist(settings.Config.ipList, arpIpList)
 
-        # for targets specify in active parameter
-        if 0 != len(settings.Config.activeModList):
-            color(f"[i] Begin Active scan on {settings.Config.activeModList}")
-
-        for activeTarget in settings.Config.activeModList:
-            if activeTarget not in settings.Config.cidrDoneList:
-                hostIpList += Scanner.pingSweepScan(activeTarget)
+    def harvestPingSweep(self):
+        if True == settings.Config.pingsweep and 0 != len(settings.Config.activeModList):
+            color(f"[i] Begin PingSweep scan on discovered and specified CIDR")
+            targets = (list(set(settings.Config.cidrList + settings.Config.activeModList)))
+        elif 0 != len(settings.Config.activeModList):
+            color(f"[i] Begin PingSweep scan on specified CIDR only")
+            targets = settings.Config.activeModList
+        else:
+            color(f"[i] Begin PingSweep scan on discovered CIDR")
+            targets = settings.Config.cidrList
         
-        if 0 != len(settings.Config.activeModList):
-            color(f"[*] IP addresses found by Active scan : {len(list(set(hostIpList)))}")
+        thQueue = queue.Queue()
+        for i in range(settings.Config.thread):
+            thread = ThreadPingSweep(thQueue, self.ipList)
+            thread.start()
+        
+        # add each cidr to check to the queue for work            
+        for target in targets:
+            if target not in settings.Config.cidrDoneList:
+                thQueue.put(target)
+        # wait for all threads to finish
+        thQueue.join()
 
-        hostIpList += arpIpList
-        hostIpList = (list(set(hostIpList)))
-        addUniqueTolist(settings.Config.ipList, hostIpList)
+        self.ipList = (list(set(self.ipList)))
 
-    def harvestSingleTarget(self, targets):
-        if targets not in settings.Config.cidrDoneList:
-            hostList = Scanner.pingSweepScan(targets)
-            color(f"[*] IP addresses found by PingSweep scan on {targets} : {len(hostList)}")
-            addUniqueTolist(settings.Config.ipList, hostList, settings.Config.verbose, settings.Config.ipListFilename)
+        color(f"[*] New IP Addresses found via PingSweep scan : {len(self.ipList)}")

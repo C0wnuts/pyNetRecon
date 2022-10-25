@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-import ldap3
+import ldap3, sys
 from ldap3 import Connection, Server, NTLM, ALL
 from utils import *
-import socket, sys
 
 class DomainHarvester:
     
@@ -37,8 +36,8 @@ class DomainHarvester:
                     finalValue = str(item['name'])
                     if '' != finalValue:
                         addUniqueTolist(settings.Config.cidrList, [finalValue], settings.Config.verbose)
-                        self.cidrList = addUniqueTolist(self.cidrList, [finalValue])
-
+                        cidrResults   = addUniqueTolist(self.cidrList, [finalValue])
+                        self.cidrList = cidrResults[0]
                 if 'distinguishedName' in item:
                     # Check if item is a domain controller
                     distinguishedName = str(item['distinguishedName'])
@@ -76,7 +75,7 @@ class DomainHarvester:
                 color(f"[i] Domain Controller found : {target}")
             except:
                 color(f"[!] Domain controller not found on : {domain}\n [!] Try to specify DNS IP via -D mandatory option or directly fill in the domain controller IP address with -i mandatory option")
-                sys.exit(-1)
+                sys.exit(1)
         else:
             target = kdcHost
 
