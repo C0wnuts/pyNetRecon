@@ -14,13 +14,13 @@ class ThreadPingSweep(threading.Thread):
             target = self.thQueue.get()
             try:
                 hostList = Scanner.pingSweepScan(target)
-                if None != hostList:
-                    color(f"[*] IP addresses found by PingSweep scan on {target} : {len(hostList)}")
-                    ipListResults = addUniqueTolist(settings.Config.ipList, hostList, settings.Config.verbose, settings.Config.ipListFilename)
-                    for host in ipListResults[1]:
+                if hostList is not None:
+                    ipListResults = addUniqueTolist(settings.Config.ipList, hostList, settings.Config.verbose, settings.Config.ipListFilename)[1]
+                    for host in ipListResults:
                         self.ipList.append(host)
+                    color(f"[*] IP addresses found by PingSweep scan on {target} : {len(ipListResults)}")
             except:
                 pass
-            
+
             # indicate that the lookup is complete
             self.thQueue.task_done()

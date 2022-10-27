@@ -35,8 +35,8 @@ parser.add_option('-H','--hashes',     action="store",       help="Hashes LM:NTL
 parser.add_option('-i','--dc-ip',      action="store",       help="Ip address of the domain controller to collect information.", dest="KdcHost", metavar="10.1.2.3", default=None)
 parser.add_option('-s','--ldaps',      action="store_true",  help="Active LDAP over SSL to encrypt communications.", dest="Ldaps", default=False)
 parser.add_option('-a','--active-only',action="store_true",  help="Gather active users only on domain.", dest="ActiveOnly", default=False)
-parser.add_option('-A','--active',     action="store",       help="Active mode. This option allows you to enable active IP address harvesting by entering CIDRs.", dest="Active", default=None)
-parser.add_option('-P','--pingsweep',  action="store_true",  help="Enable pingsweep mode. This option allows you to enable pingsweep scan for IP address harvesting on discovered CIDR.", dest="Pingsweep", default=False)
+parser.add_option('-A','--active',     action="store",       help="Active mode. Provide CIDR to perform pingsweep scan on it.", dest="Active", default=None)
+parser.add_option('-P','--pingsweep',  action="store_true",  help="Enable pingsweep mode. This option allows you to enable pingsweep scan for IP address harvesting on discovered CIDR. Noisy", dest="Pingsweep", default=False)
 parser.add_option('-v','--verbose',    action="store_true",  help="Increase verbosity.", dest="Verbose", default=False)
 options, args = parser.parse_args()
 
@@ -67,7 +67,7 @@ def main():
         loging = Logging()
         
         harvest(DeductionHarvester)
-        if None != settings.Config.domain:
+        if settings.Config.domain is not None:
             harvest(DomainHarvester)
         if True == settings.Config.isMacAddrValid:
             harvest(ActiveHarvester)
@@ -82,6 +82,7 @@ def main():
         loging.logArrayToFile(settings.Config.dcList,   settings.Config.dcListFilename)
         loging.logArrayToFile(settings.Config.dnsList,  settings.Config.dnsListFilename)
         loging.logArrayToFile(settings.Config.ipList,   settings.Config.ipListFilename)
+        loging.logArrayToFile(settings.Config.trustList,settings.Config.trusListFilename)
 
         if True == settings.Config.pingsweep or 0 != len(settings.Config.activeModList):
             harvestPingSweep(ActiveHarvester)

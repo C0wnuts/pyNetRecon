@@ -37,6 +37,7 @@ class ActiveHarvester:
         for target in targets:
             if target not in settings.Config.cidrDoneList:
                 thQueue.put(target)
+                addCidrToDoneList(target)
         # wait for all threads to finish
         thQueue.join()
 

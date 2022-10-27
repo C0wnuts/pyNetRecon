@@ -1,104 +1,142 @@
 #!/usr/bin/env python3
 
-import ldap3, sys
+import sys
 from ldap3 import Connection, Server, NTLM, ALL
 from utils import *
 
 class DomainHarvester:
     
     def __init__(self):
-        self.cidrList     = []
+        self.cidrList = []
 
-    def processRecord(self, itemList):
+    def processSubnet(self, itemList):
+        nameList = []
         for item in itemList:
-            finalValue        = ''
-            isDc              = False
-            distinguishedName = ''
-
             try:
-                if 'sAMAccountName' in item:
-                    finalValue = str(item['sAMAccountName'])
-                    if finalValue.endswith('$') is False:
-                        # User Account
-                        if '' != finalValue:
-                            addUniqueTolist(settings.Config.userList, [finalValue], settings.Config.verbose)
-                
-                if 'dNSHostName' in item:
-                    if 0 == len(item['dNSHostName']):
-                        hostname = f"{item['cn']}.{settings.Config.domain}"
-                    else:
-                        hostname = str(item['dNSHostName'])
-                    # dns hostname
-                    addUniqueTolist(settings.Config.dnsList, [hostname], settings.Config.verbose)
-
-                if 'name' in item:
-                    # Subnets
-                    finalValue = str(item['name'])
-                    if '' != finalValue:
-                        addUniqueTolist(settings.Config.cidrList, [finalValue], settings.Config.verbose)
-                        cidrResults   = addUniqueTolist(self.cidrList, [finalValue])
-                        self.cidrList = cidrResults[0]
-                if 'distinguishedName' in item:
-                    # Check if item is a domain controller
-                    distinguishedName = str(item['distinguishedName'])
-                    if "Domain Controller" in distinguishedName:
-                        isDc = True
-
-                if True == isDc:
-                    addUniqueTolist(settings.Config.dcList, [hostname])
+                nameList.append(item.name.values[0])
             except Exception as e:
                 continue
+        
+        self.cidrList  = addUniqueTolist(settings.Config.cidrList, nameList, settings.Config.verbose)[1]
 
+    def processUser(self, itemList):
+        sAMAccountList = []
+        for item in itemList:
+            sAMAccountName = ''
+            try:
+                sAMAccountName = item.sAMAccountName.values[0]
+                if sAMAccountName.endswith('$') is False:
+                    sAMAccountList.append(sAMAccountName)
+            except Exception as e:
+                continue
+        addUniqueTolist(settings.Config.userList, sAMAccountList, settings.Config.verbose)
 
-    def searchResEntry_to_dict(self, results):
-        data = {}
-        for attr in results['attributes']:
-            key = str(attr['type'])
-            value = str(attr['vals'][0])
-            data[key] = value
-        return data
+    def processComputer(self, itemList):
+        distinguishedList = []
+        dcList            = []
+        for item in itemList:
+            try:
+                dNSHostName = getattr(item,'dNSHostName')
+                if 0 != len(dNSHostName):
+                    hostname = dNSHostName.values[0]
+                else:
+                    hostname = f"{item.cn.values[0]}.{settings.Config.domain}"
+                distinguishedList.append(hostname)
+                
+                # Check if item is a domain controller
+                if "Domain Controller" in item.distinguishedName.values[0]:
+                    dcList.append(hostname)
+            except Exception as e:
+                continue
+        
+        addUniqueTolist(settings.Config.dnsList, distinguishedList, settings.Config.verbose)
+        addUniqueTolist(settings.Config.dcList, dcList)
+    
+    def ProcessTrust(self, itemList):
+        distinguishedNameList = []
+        for item in itemList:
+            try:
+                distinguishedNameList.append(item.distinguishedName.values[0].split(',',1)[0].replace('CN=',''))
+            except Exception as e:
+                continue
+            
+            addUniqueTolist(settings.Config.trustList, distinguishedNameList, settings.Config.verbose)
+    
+    def getDCServIp(self, domain, username, password, kdcHost, proto, errMsg):
+        kdcList        = []
+        loginFailNum   = 0
+        credentialFail = False
+
+        if kdcHost is None:
+            try:
+                answers = settings.Config.dnsResolver.resolve(qname=domain)
+                rrset   = [rr.address for rr in answers.rrset]
+                for rset in rrset:
+                    kdcList.append(rset)
+                
+                if 0 == len(kdcList):
+                    color(f"[!] Domain controller not found on : {domain}\n [!] Try to specify DNS IP via -D mandatory option or directly fill in the domain controller IP address with -i mandatory option")
+                    sys.exit(1)
+                if True == settings.Config.verbose:
+                    color(f"[i] Domain Controllers found : {kdcList}")
+                else:
+                    color(f"[i] Domain Controllers found : {len(kdcList)}")
+            except Exception as e:
+                color(f"[!] Domain controller not found on : {domain}\n [!] Try to specify DNS IP via -D mandatory option or directly fill in the domain controller IP address with -i mandatory option")
+                sys.exit(1)
+        else:
+            kdcList.append(kdcHost)
+
+        for kdc in kdcList:
+            if True == settings.Config.verbose:
+                color(f"[i] Trying to connect to: {kdc}")
+            if True == settings.Config.ldaps:
+                serv = Server(str(kdc), get_info=ALL, use_ssl = True, connect_timeout=10)
+            else:
+                serv = Server(str(kdc), get_info=ALL, connect_timeout=10)
+            
+            ldapConnection = Connection(serv, user=f"{domain}\\{username}", password=f"{password}", authentication=NTLM)
+            try:
+                if not ldapConnection.bind():
+                    color("[!] Fail to connect to domain : bad credentials")
+                    credentialFail = True
+                    sys.exit(1)
+                else:
+                    color(f"[i] Connection bound on : {kdc}")
+                    return serv, ldapConnection
+            except Exception as e:
+                color(f"[!] Fail to connect to {kdc} via {proto} : {e}")
+                loginFailNum += 1
+        
+        if True == credentialFail:
+            sys.exit(1)
+        
+        if loginFailNum == len(kdcList):
+            color(f"[!] Fail to connect to domain via {proto}. {errMsg}")
+            sys.exit(1)
+
 
     def harvest(self):
         domain   = settings.Config.domain
         username = settings.Config.username
         password = settings.Config.password
-        target   = settings.Config.kdcHost
         kdcHost  = settings.Config.kdcHost
+        proto    = "ldap"
+        errMsg = "Retry with LDAPS protocol (with -s parameter)"
+        if True == settings.Config.ldaps:
+            proto  = "ldaps"
+            errMsg = "Retry with LDAP protocol (without -s parameter)"
 
         color(f"[i] Begin Domain scan on {domain}")
+        if True == settings.Config.verbose:
+            color(f"[i] Protocol used: {proto}")
 
-        if None == kdcHost:
-            try:
-                kdcHost                 = str(settings.Config.dnsResolver.resolve(qname=domain)[0])
-                settings.Config.kdcHost = kdcHost
-                target                  = kdcHost
-                color(f"[i] Domain Controller found : {target}")
-            except:
-                color(f"[!] Domain controller not found on : {domain}\n [!] Try to specify DNS IP via -D mandatory option or directly fill in the domain controller IP address with -i mandatory option")
-                sys.exit(1)
-        else:
-            target = kdcHost
-
-        if True == settings.Config.ldaps:
-            serv = Server(target, get_info=ALL, use_ssl = True, connect_timeout=15)
-        else:
-            serv = Server(target, get_info=ALL, connect_timeout=15)
-
-        ldapConnection = Connection(serv, user=f"{domain}\\{username}", password=f"{password}", authentication=NTLM)
-        try:
-            if not ldapConnection.bind():
-                color("[!] Fail to connect to domain : bad credentials")
-                sys.exit(1)
-        except Exception as e:
-            color(f"[!] Fail to connect to domain via ldaps : {e}")
-            sys.exit(1)
-        
-
-        baseDN       = serv.info.other['defaultNamingContext'][0]
-        MINIMAL_ATTR = ['sAMAccountName']
-        SITE_ATTR    = ['distinguishedName', 'name', 'description']
-        SUBNETS_ATTR = ['name']
-        COMPUT_ATTR  = ['cn','dNSHostName', 'distinguishedName']
+        serv, ldapConnection = self.getDCServIp(domain, username, password, kdcHost, proto, errMsg)
+        baseDN               = serv.info.other['defaultNamingContext'][0]
+        USER_ATTR            = ['sAMAccountName']
+        SITE_ATTR            = ['distinguishedName']
+        SUBNETS_ATTR         = ['name']
+        COMPUT_ATTR          = ['cn','dNSHostName', 'distinguishedName']
 
         #Site List : 
         ldapConnection.extend.standard.paged_search('CN=Configuration,%s' % (baseDN), '(objectClass=site)', attributes=SITE_ATTR, paged_size=500, generator=False)
@@ -109,26 +147,30 @@ class DomainHarvester:
         subnetsList = []
         for site in sitesList:
             site_dn      = site['distinguishedName']
-            site_name    = site['name']
             ldapConnection.extend.standard.paged_search('CN=Sites,CN=Configuration,%s' % (baseDN), '(siteObject=%s)' % site_dn, attributes=SUBNETS_ATTR, paged_size=500, generator=False)
             subnetsList  += ldapConnection.entries
         if 0 < len(subnetsList):
-            self.processRecord(subnetsList)
+            self.processSubnet(subnetsList)
             color(f"[*] Domain subnets found : {len(self.cidrList)}")
 
         #User List
         if True == settings.Config.activeOnly:
-            ldapConnection.extend.standard.paged_search('%s' % (baseDN), '(&(objectCategory=person)(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))', attributes=MINIMAL_ATTR, paged_size=500, generator=False)
+            ldapConnection.extend.standard.paged_search('%s' % (baseDN), '(&(objectCategory=person)(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))', attributes=USER_ATTR, paged_size=500, generator=False)
         else:
-            ldapConnection.extend.standard.paged_search('%s' % (baseDN), '(&(objectCategory=person)(objectClass=user))', attributes=MINIMAL_ATTR, paged_size=500, generator=False)
+            ldapConnection.extend.standard.paged_search('%s' % (baseDN), '(&(objectCategory=person)(objectClass=user))', attributes=USER_ATTR, paged_size=500, generator=False)
         userList = ldapConnection.entries
-        self.processRecord(userList)
+        self.processUser(userList)
         color(f"[*] Domain users found : {len(settings.Config.userList)}")
 
         #Computer List
         ldapConnection.extend.standard.paged_search('%s' % (baseDN), '(&(objectClass=computer)(objectClass=user))', attributes=COMPUT_ATTR, paged_size=500, generator=False)
         computerList = ldapConnection.entries
-        self.processRecord(computerList)
-        
+        self.processComputer(computerList)
         color(f"[*] Domain controllers found : {len(settings.Config.dcList)}")
         color(f"[*] Domain computers found : {len(settings.Config.dnsList)}")
+
+        #Trusts List
+        ldapConnection.extend.standard.paged_search('%s' % (baseDN), '(objectClass=trustedDomain)', attributes=SITE_ATTR, paged_size=500, generator=False)
+        trustList = ldapConnection.entries
+        self.ProcessTrust(trustList)
+        color(f"[*] Domain trusts found : {len(settings.Config.trustList)}")

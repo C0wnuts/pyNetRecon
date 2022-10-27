@@ -5,7 +5,7 @@ from utils import *
 from dns import resolver
 from datetime import datetime
 
-__version__ = 'pyNetRecon 1.1'
+__version__ = 'pyNetRecon 1.2'
 
 class Settings:
     def __init__(self):
@@ -21,6 +21,7 @@ class Settings:
         self.dnsListFilename  = "hostList.txt"
         self.cidrListFilename = "cidrList.txt"
         self.userListFilename = "userList.txt"
+        self.trusListFilename = "trustList.txt"
         self.currentCidr      = ""
         self.strIpExclusion   = ""
         self.isMacAddrValid   = True
@@ -30,11 +31,13 @@ class Settings:
         self.userList         = []
         self.dcList           = []
         self.dnsList          = []
+        self.trustList        = []
 
         utils.createFoler(self.outputFolder)
 
     def populate(self, options):
         self.banner()
+        self.errorHandler(options)
         self.interface     = options.Interface
         self.isInterfaceUp()
         self.isInterfaceHaveMac()
@@ -43,7 +46,6 @@ class Settings:
         self.thread        = options.Thread
         self.setOutDirName(options.OutputDir)
         self.activeModList = (list(set(utils.normalizeList(self.activeMod))))
-        self.errorHandler(options)
         self.setIpExclusion(options.Exclusion)
         self.printExecutionParameters()
         self.hostname      = socket.gethostname()
@@ -80,11 +82,11 @@ class Settings:
         self.outputDir = utils.sanityzeFileName(f"{outputDir}{self.now}")
 
     def setPassword(self):
-        if None == self.password and "" != self.nthash:
+        if self.password is None and "" != self.nthash:
             self.password = f"{self.lmhash}:{self.nthash}"
 
     def setHashes(self, hashes):
-        if None != hashes:
+        if hashes is not None:
             self.lmhash, self.nthash = hashes.split(":")
         if "" == self.lmhash and "" != self.nthash:
             self.lmhash = "aad3b435b51404eeaad3b435b51404ee"
@@ -92,13 +94,13 @@ class Settings:
     def setDnsResolver(self):
         self.dnsResolver = resolver.Resolver()
         self.dnsResolver.lifetime = 2
-        if None != self.customDns:
+        if self.customDns is not None:
             self.dnsResolver.nameservers = [self.customDns]
 
     def setIpExclusion(self, ipList):
         selfIp         = netifaces.ifaddresses(self.interface)[netifaces.AF_INET][0]['addr']
         self.exclusion = ["224.0.0.251", "224.0.0.252", "127.0.0.1", selfIp]
-        if None != ipList:
+        if ipList is not None:
             self.exclusion = self.exclusion + utils.normalizeList(ipList)
         for excludedIp in self.exclusion:
             self.strIpExclusion += f"{excludedIp},"
@@ -112,12 +114,32 @@ class Settings:
         utils.color(f"[i] Excluded addresses   : {self.exclusion}")
         mods       = "[i] Harvesting modes     : Default"
 
-        if None != self.activeMod:
+        if self.activeMod is not None:
             mods = f"{mods}, Active \n [i] Active Harvesting on : {self.activeModList}"
 
         utils.color(mods)
-        utils.color("#################### Let's recon #####################\n")
+        utils.color(f"DNS and pingsweep threads : {str(self.thread)}")
+        utils.color("##################### Let's recon #####################\n")
 
+    def errorHandler(self, options):
+        if options.Domain is not None and options.Username is None:
+            utils.color(f"[!] Username is missing : -u mandatory option is missing")
+            sys.exit(0)
+        if options.Domain is None and options.Username is not None:
+            utils.color(f"[!] Domain is missing : -d mandatory option is missing")
+            sys.exit(0)
+        self.paramConfusionCheck(options)
+    
+    def paramConfusionCheck(self, options):
+        if options.Active is not None and options.Active.startswith("-"):
+            utils.color(f"[!] Provide valid value to -A mandatory option. Current value : {options.Active}")
+            sys.exit(1)
+        if options.KdcHost is not None and options.KdcHost.startswith("-"):
+            utils.color(f"[!] Provide valid value to -i mandatory option. Current value : {options.KdcHost}")
+            sys.exit(1)
+        if options.DnsServer is not None and options.DnsServer.startswith("-"):
+            utils.color(f"[!] Provide valid value to -D mandatory option. Current value : {options.DnsServer}")
+            sys.exit(1)
 
     def banner(self):
         utils.color("#######################################################")
@@ -130,14 +152,6 @@ class Settings:
         print("                                                        ")
         utils.color("#######################################################")
 
-
-    def errorHandler(self, options):
-        if None != options.Domain and None == options.Username:
-            utils.color(f"[!] Username is missing : -u mandatory option is missing")
-            sys.exit(0)
-        if None == options.Domain and None != options.Username:
-            utils.color(f"[!] Domain is missing : -d mandatory option is missing")
-            sys.exit(0)
 
 def init():
     global Config

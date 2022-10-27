@@ -24,7 +24,7 @@ def success(text):
     return settings.Config.successFontCol + text + settings.Config.defaultFontCol
 
 def normalizeList(text):
-    if None != text:
+    if text is not None:
         itemList = text.split(",")
         return [item.strip() for item in itemList]
     return []
@@ -39,7 +39,7 @@ def checkIpInNetwork(ip):
     ipAddr  = ipaddress.ip_address(ip)
     isFound = False 
     for cidr in settings.Config.cidrList:
-        networkCidr = ipaddress.ip_network(cidr)
+        networkCidr = ipaddress.ip_network(cidr, False)
         if ipAddr in networkCidr:
             isFound = True
     if False == isFound:
@@ -63,14 +63,14 @@ def sanityzeFileName(filename):
 def addUniqueTolist(itemList, newItemList, isForcedVerbose = False, filename = None):
     uniqueList = []
     for item in newItemList:
-        if item not in itemList and item not in settings.Config.exclusion:
+        if item not in itemList and item not in settings.Config.exclusion and '' != item:
             itemList.append(item)
             uniqueList.append(item)
             if bool(re.match(r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$", str(item))):
                 checkIpInNetwork(item)
             if True == isForcedVerbose:
                 color(f"[i] new entry : {item}")
-            if None != filename:
+            if filename is not None:
                 logging = Logging()
                 logging.loggingToFile(item.strip(), filename)
         elif True == settings.Config.verbose:

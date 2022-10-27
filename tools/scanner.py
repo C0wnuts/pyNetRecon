@@ -25,11 +25,12 @@ class Scanner:
         nm            = nmap.PortScanner()
         nm.scan(hosts=targets, sudo=True, arguments=f"-n -sn -e {settings.Config.interface} --exclude {settings.Config.strIpExclusion}")
         result = getattr(nm,'_scan_result',None)
-        if None != result and None != result.get('nmap').get('scaninfo').get('error'):
-            error = result.get('nmap').get('scaninfo').get('error')[0].replace("\n","")
+        
+        if result is not None and result.get('nmap').get('scaninfo').get('error') is not None:
+            error = result.get('nmap').get('scaninfo').get('error')[0].replace("\n",". ")
             color(f"[!] {error}")
-            return;
         hostList = [(x, nm[x]['status']['state']) for x in nm.all_hosts()]
+    
         for host, status in hostList:
             if "up" == status:
                 finalHostList.append(host)
